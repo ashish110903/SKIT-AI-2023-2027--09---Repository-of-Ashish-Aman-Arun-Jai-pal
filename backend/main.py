@@ -10,6 +10,7 @@ from backend.config import settings
 from backend.database import engine, Base
 from backend.routes.sensors import router as sensor_router
 from backend.routes.alerts import router as alert_router
+from backend.routes.predict import router as predict_router
 
 # Auto-create database tables on startup
 Base.metadata.create_all(bind=engine)
@@ -32,6 +33,7 @@ app.add_middleware(
 # Mount API Routers
 app.include_router(sensor_router, prefix=settings.API_V1_STR)
 app.include_router(alert_router, prefix=settings.API_V1_STR)
+app.include_router(predict_router, prefix=settings.API_V1_STR)
 
 @app.get("/")
 def root():
