@@ -1,0 +1,9 @@
+{
+  "type": "object",
+  "properties": {
+    "rain_mm": {"type": "number"},
+    "pressure_hpa": {"type": "number"},
+    "humidity_pct": {"type": "number"}
+  },
+  "required": ["rain_mm", "pressure_hpa", "humidity_pct"]
+}
