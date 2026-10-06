@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cloudburst Early Warning & Alarm System | Dashboard</title>
+  <link rel="stylesheet" href="css/style.css">
+  <!-- Chart.js for real-time sensor telemetry graphs -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <div class="app-container">
+    
+    <!-- Top Emergency Flash Banner (Activated during Cloudburst Warning) -->
+    <div id="emergencyBanner" class="emergency-banner">
+      <div class="banner-content">
+        <span class="banner-icon">⚠️</span>
+        <div>
+          <strong>CRITICAL EARLY WARNING:</strong> Rapid pressure plunge & torrential cloudburst precipitation detected at <span id="bannerStation">Station-01</span>. Evacuation advisory in effect!
+        </div>
+      </div>
+      <button id="btnBannerMute" class="btn-icon" style="background: rgba(0,0,0,0.3); border-color: rgba(255,255,255,0.4);">
+        🔇 Silence Siren
+      </button>
+    </div>
+
+    <!-- Navigation Header -->
+    <header class="top-header">
+      <div class="brand-wrapper">
+        <div class="brand-icon">⚡</div>
+        <div class="brand-info">
+          <h1>Cloudburst Early Warning & Alarm System</h1>
+          <div class="brand-sub">
+            <span>SKIT/AI/2023-2027/09</span>
+            <span>•</span>
+            <span>Hilly Terrain Atmospheric Monitoring</span>
+            <span>•</span>
+            <span>Frontend: Jai Pal</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <!-- Audio Alarm Siren Controller -->
+        <button id="btnAudioToggle" class="btn-icon" title="Toggle Siren Alert Audio">
+          <span id="audioIcon">🔊</span>
+          <span id="audioLabel">Siren Ready</span>
+        </button>
+
+        <!-- Connectivity Badge -->
+        <div id="networkBadge" class="network-badge">
+          <span class="status-dot"></span>
+          <span id="networkText">LoRa Mesh: Online</span>
+        </div>
+
+        <!-- Clock -->
+        <div class="clock-display">
+          <div id="liveClock" class="clock-time">00:00:00 IST</div>
+          <div id="liveDate" class="clock-date">25 September 2026</div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Mountain Station Switcher -->
+    <nav class="station-nav-bar">
+      <span class="station-label">Monitoring Nodes:</span>
+      <div class="station-tabs" id="stationTabsContainer">
+        <!-- Rendered dynamically -->
+      </div>
+    </nav>
+
+    <!-- Main Dashboard Area -->
+    <main class="dashboard-main">
+
+      <!-- Simulation & Test Panel (Sprint 6 Feature) -->
+      <section class="sim-panel">
+        <div class="sim-info">
+          <span class="sim-badge">TEST & SIMULATION HARNESS</span>
+          <span style="font-size: 0.8rem; color: var(--text-muted);">Simulate real-time mountain meteorological conditions:</span>
+        </div>
+        <div class="sim-actions">
+          <button class="btn-sim btn-sim-normal" onclick="window.SimulationEngine.triggerNormal()">
+            🌤️ Normal Mountain Weather
+          </button>
+          <button class="btn-sim btn-sim-watch" onclick="window.SimulationEngine.triggerWatch()">
+            🌧️ Elevated Convection (Watch)
+          </button>
+          <button class="btn-sim btn-sim-danger" onclick="window.SimulationEngine.triggerCloudburst()">
+            ⛈️ Flash Cloudburst (Warning)
+          </button>
+          <button class="btn-sim" style="background: var(--bg-card); color: var(--color-cyan); border-color: var(--color-cyan);" onclick="window.SimulationEngine.runAutomatedTests()">
+            🧪 Run Frontend Test Suite
+          </button>
+        </div>
+      </section>
+
+      <!-- Metric KPI Cards -->
+      <section class="kpi-grid">
+        <!-- Rainfall Rate -->
+        <div class="kpi-card" id="kpiRainfall">
+          <div class="kpi-header">
+            <span class="kpi-title">Rainfall Intensity</span>
+            <span class="kpi-icon">🌧️</span>
+          </div>
+          <div class="kpi-value-row">
+            <span class="kpi-value" id="valRainfall">0.0</span>
+            <span class="kpi-unit">mm/hr</span>
+          </div>
+          <div class="kpi-footer">
+            <span>Cumulative (1h): <strong id="valRainAccum">0.0 mm</strong></span>
+            <span class="kpi-badge trend-stable" id="badgeRainTrend">STABLE</span>
+          </div>
+        </div>
+
+        <!-- Barometric Pressure -->
+        <div class="kpi-card" id="kpiPressure">
+          <div class="kpi-header">
+            <span class="kpi-title">Atmospheric Pressure</span>
+            <span class="kpi-icon">⏱️</span>
+          </div>
+          <div class="kpi-value-row">
+            <span class="kpi-value" id="valPressure">1013.2</span>
+            <span class="kpi-unit">hPa</span>
+          </div>
+          <div class="kpi-footer">
+            <span>Drop Rate (15m): <strong id="valPressureDrop">0.0 hPa/h</strong></span>
+            <span class="kpi-badge trend-stable" id="badgePressureTrend">NORMAL</span>
+          </div>
+        </div>
+
+        <!-- Ambient Temperature -->
+        <div class="kpi-card" id="kpiTemp">
+          <div class="kpi-header">
+            <span class="kpi-title">Ambient Temperature</span>
+            <span class="kpi-icon">🌡️</span>
+          </div>
+          <div class="kpi-value-row">
+            <span class="kpi-value" id="valTemp">21.5</span>
+            <span class="kpi-unit">°C</span>
+          </div>
+          <div class="kpi-footer">
+            <span>Dew Point: <strong id="valDewPoint">18.2 °C</strong></span>
+            <span class="kpi-badge trend-stable" id="badgeTempTrend">NOMINAL</span>
+          </div>
+        </div>
+
+        <!-- Relative Humidity -->
+        <div class="kpi-card" id="kpiHumidity">
+          <div class="kpi-header">
+            <span class="kpi-title">Relative Humidity</span>
+            <span class="kpi-icon">💧</span>
+          </div>
+          <div class="kpi-value-row">
+            <span class="kpi-value" id="valHumidity">72</span>
+            <span class="kpi-unit">%</span>
+          </div>
+          <div class="kpi-footer">
+            <span>Vapor Saturation: <strong id="valVaporSat">Moderate</strong></span>
+            <span class="kpi-badge trend-stable" id="badgeHumidityTrend">NORMAL</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Visual Hub: Telemetry Charts & AI/ML Prediction Gauge -->
+      <section class="visual-hub">
+        
+        <!-- Live Sensor Charts -->
+        <div class="dashboard-card">
+          <div class="card-header-bar">
+            <h2>📈 Real-Time Sensor Telemetry (<span id="chartStationName">Station-01</span>)</h2>
+            <div class="chart-controls">
+              <button class="btn-chart-toggle active" id="btnToggleCombined" onclick="window.TelemetryCharts.switchView('combined')">All Sensors</button>
+              <button class="btn-chart-toggle" id="btnToggleRain" onclick="window.TelemetryCharts.switchView('rainfall')">Rainfall</button>
+              <button class="btn-chart-toggle" id="btnTogglePressure" onclick="window.TelemetryCharts.switchView('pressure')">Pressure Drop</button>
+            </div>
+          </div>
+          <div class="chart-wrapper">
+            <canvas id="telemetryChart"></canvas>
+          </div>
+        </div>
+
+        <!-- AI/ML Cloudburst Risk Gauge -->
+        <div class="dashboard-card">
+          <div class="card-header-bar">
+            <h2>🤖 AI/ML Cloudburst Risk Assessment</h2>
+            <span style="font-size: 0.72rem; color: var(--color-cyan);">Model: Random Forest Ensemble</span>
+          </div>
+          
+          <div class="risk-gauge-container">
+            <!-- Circular Gauge SVG Canvas -->
+            <div style="position: relative; width: 220px; height: 130px; display: flex; justify-content: center;">
+              <svg width="220" height="130" viewBox="0 0 220 130">
+                <path d="M 20 120 A 90 90 0 0 1 200 120" fill="none" stroke="#374151" stroke-width="16" stroke-linecap="round"/>
+                <path id="gaugeArc" d="M 20 120 A 90 90 0 0 1 200 120" fill="none" stroke="var(--status-normal)" stroke-width="16" stroke-linecap="round" stroke-dasharray="283" stroke-dashoffset="283"/>
+              </svg>
+              <div style="position: absolute; bottom: 8px; text-align: center;">
+                <div id="riskPercentage" style="font-size: 2rem; font-weight: 800; font-variant-numeric: tabular-nums;">4.2%</div>
+                <div style="font-size: 0.72rem; color: var(--text-dim); text-transform: uppercase;">Probability of Cloudburst</div>
+              </div>
+            </div>
+
+            <div class="risk-level-banner">
+              <span id="riskLevelBadge" class="risk-badge normal">LEVEL 0: NORMAL</span>
+            </div>
+
+            <!-- Anomaly Factors Checklist -->
+            <div class="risk-factors-list">
+              <div class="risk-factor-item">
+                <span class="factor-name">Pressure Gradient ΔP/15m:</span>
+                <span class="factor-val" id="factorPressure">Normal (-0.2 hPa)</span>
+              </div>
+              <div class="risk-factor-item">
+                <span class="factor-name">Rainfall Intensity Spike:</span>
+                <span class="factor-val" id="factorRain">Sub-threshold (&lt;10 mm/h)</span>
+              </div>
+              <div class="risk-factor-item">
+                <span class="factor-name">Moisture Convergence:</span>
+                <span class="factor-val" id="factorMoisture">Low Risk</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- Bottom Grid: Station Hardware Node Info & Alert History Log -->
+      <section class="bottom-grid">
+        
+        <!-- Active Station Metadata -->
+        <div class="dashboard-card">
+          <div class="card-header-bar">
+            <h2>🏔️ Node Metadata & Hardware Status</h2>
+            <span class="network-badge" id="nodeBattery">🔋 Battery: 94%</span>
+          </div>
+          <div class="table-wrapper">
+            <table class="data-table">
+              <tbody>
+                <tr>
+                  <td><strong>Station Name:</strong></td>
+                  <td id="metaStationName">Station-01 (Mussoorie Ridge)</td>
+                  <td><strong>Altitude:</strong></td>
+                  <td id="metaAltitude">2,005 m ASL</td>
+                </tr>
+                <tr>
+                  <td><strong>Microcontroller:</strong></td>
+                  <td>ESP32 DevKit v1 + LoRa SX1276</td>
+                  <td><strong>Sensors:</strong></td>
+                  <td>BME280 + Tipping Bucket Rain Gauge</td>
+                </tr>
+                <tr>
+                  <td><strong>Coordinates:</strong></td>
+                  <td id="metaCoords">30.4598° N, 78.0644° E</td>
+                  <td><strong>LoRa RSSI / SNR:</strong></td>
+                  <td id="metaSignal">-74 dBm (Excellent)</td>
+                </tr>
+                <tr>
+                  <td><strong>Data Uplink Interval:</strong></td>
+                  <td>30 Seconds</td>
+                  <td><strong>Firmware:</strong></td>
+                  <td>v2.4.1-skit</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Alert Dispatch Log Table -->
+        <div class="dashboard-card">
+          <div class="card-header-bar">
+            <h2>🚨 Early Warning Notification Log</h2>
+            <button class="btn-icon" onclick="window.AlertsManager.clearAcks()" style="font-size: 0.72rem; padding: 0.2rem 0.5rem;">Clear Log</button>
+          </div>
+          <div class="table-wrapper">
+            <table class="data-table" id="alertsTable">
+              <thead>
+                <tr>
+                  <th>Time</th>
+                  <th>Station</th>
+                  <th>Level</th>
+                  <th>Event Description</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="alertsLogBody">
+                <!-- Dynamically populated -->
+                <tr>
+                  <td>00:00:00</td>
+                  <td>Station-01</td>
+                  <td><span class="kpi-badge trend-stable">INFO</span></td>
+                  <td>Monitoring baseline established. Sensors calibrated.</td>
+                  <td>Logged</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </section>
+
+    </main>
+
+    <!-- Emergency Modal (Sprint 4: Emergency Warning Display) -->
+    <div id="emergencyModal" class="modal-overlay">
+      <div class="emergency-modal">
+        <div class="modal-icon-wrap">🚨</div>
+        <h3 id="modalAlertTitle">CLOUDBURST WARNING DETECTED</h3>
+        <p class="modal-desc" id="modalAlertDesc">
+          Extreme rainfall surge (>65 mm/hr) coupled with steep atmospheric pressure drop (-4.8 hPa/15m) detected at Station-01. High risk of localized cloudburst and flash flood.
+        </p>
+        <div class="modal-meta">
+          <div class="modal-meta-row">
+            <span style="color: var(--text-dim);">Trigger Time:</span>
+            <strong id="modalAlertTime">--</strong>
+          </div>
+          <div class="modal-meta-row">
+            <span style="color: var(--text-dim);">Monitoring Station:</span>
+            <strong id="modalAlertStation">Station-01</strong>
+          </div>
+          <div class="modal-meta-row">
+            <span style="color: var(--text-dim);">Action Required:</span>
+            <span style="color: var(--color-rose); font-weight: 700;">Immediate Evacuation of Low-Lying Drainage Corridors</span>
+          </div>
+        </div>
+        <div class="modal-btn-row">
+          <button class="btn-ack" onclick="window.AlertsManager.acknowledgeActiveAlert()">
+            ✓ Acknowledge & Dispatch SOP
+          </button>
+          <button class="btn-mute" onclick="window.AlertsManager.muteSiren()">
+            🔇 Silence Audio Alarm
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- In-Browser Automated Test Report Modal (Sprint 6) -->
+    <div id="testReportModal" class="modal-overlay">
+      <div class="emergency-modal" style="border-color: var(--color-cyan); box-shadow: 0 0 30px rgba(6, 182, 212, 0.4); max-width: 600px; text-align: left;">
+        <h3 style="color: var(--color-cyan); margin-bottom: 0.5rem;">🧪 Frontend Test Suite Verification</h3>
+        <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1rem;">
+          Sprint 6 comprehensive test execution for Jai Pal's dashboard deliverables.
+        </p>
+        <div id="testResultsList" style="max-height: 320px; overflow-y: auto; font-size: 0.82rem; background: var(--bg-card); padding: 1rem; border-radius: var(--radius-sm); margin-bottom: 1.25rem;">
+          <!-- Test results will be appended here -->
+        </div>
+        <div style="text-align: right;">
+          <button class="btn-icon" style="background: var(--color-cyan); color: black; font-weight: 600;" onclick="document.getElementById('testReportModal').classList.remove('active')">
+            Close Report
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer-bar">
+      <div>
+        <strong>Cloudburst Early Warning & Alarm System</strong> | Form-2 Project Execution (Session 2026-27)
+      </div>
+      <div>
+        Designed & Implemented by <strong>Jai Pal</strong> (Frontend Lead, CSE AI)
+      </div>
+    </footer>
+
+  </div>
+
+  <!-- JavaScript Application Modules -->
+  <script src="js/alerts.js"></script>
+  <script src="js/charts.js"></script>
+  <script src="js/risk_gauge.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/simulation.js"></script>
+  <script src="tests/dashboard_test.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
