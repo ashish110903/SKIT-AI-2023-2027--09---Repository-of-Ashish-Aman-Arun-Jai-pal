@@ -1,0 +1,2 @@
+.gauge { width: 180px; height: 90px; border-radius: 90px 90px 0 0; background: conic-gradient(from 180deg, #22c55e, #eab308, #ef4444); }
+.needle { width: 4px; height: 80px; background: white; transform-origin: bottom center; transition: 0.5s ease; }
