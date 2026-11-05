@@ -1,0 +1,2 @@
+.hazard-flash { animation: flash-red 0.8s infinite alternate; }
+@keyframes flash-red { from { background: #dc2626; } to { background: #7f1d1d; } }
