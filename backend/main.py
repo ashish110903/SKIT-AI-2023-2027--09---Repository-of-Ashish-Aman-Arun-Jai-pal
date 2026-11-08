@@ -7,6 +7,7 @@ Project ID: SKIT/AI/2023-2027/09
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from backend.config import settings
+from backend.routes.sensors import router as sensor_router
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -22,6 +23,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Mount API Routers
+app.include_router(sensor_router, prefix=settings.API_V1_STR)
 
 @app.get("/")
 def root():
