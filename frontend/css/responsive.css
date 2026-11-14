@@ -1,0 +1,4 @@
+@media(max-width: 640px) {
+  .metric-card { width: 100%; margin-bottom: 12px; }
+  .chart-box { height: 220px; }
+}
