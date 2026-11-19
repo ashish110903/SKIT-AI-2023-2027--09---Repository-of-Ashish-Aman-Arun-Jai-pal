@@ -106,6 +106,15 @@ def get_git_metrics(interval="weekly"):
                 current_author = None
                 continue
 
+            # Skip commits with future dates (pre-dated sprint commits)
+            try:
+                commit_date = datetime.datetime.strptime(date_str, "%Y-%m-%d").date()
+                if commit_date > today:
+                    current_author = None
+                    continue
+            except Exception:
+                pass
+
             current_author = author
             current_date_str = date_str
 
