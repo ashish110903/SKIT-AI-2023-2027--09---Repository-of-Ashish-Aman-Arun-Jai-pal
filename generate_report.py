@@ -50,7 +50,7 @@ def get_git_metrics(interval="weekly"):
     Supported intervals: 'weekly', 'monthly', 'final'
     """
     today = datetime.date.today()
-    git_args = ['git', 'log', '--no-merges', '--pretty=format:COMMIT|||%h|||%an|||%ad|||%s', '--date=short', '--numstat']
+    git_args = ['git', 'log', '--all', '--no-merges', '--pretty=format:COMMIT|||%h|||%an|||%ad|||%s', '--date=short', '--numstat']
 
     if interval == "weekly":
         since_date = (today - datetime.timedelta(days=7)).strftime("%Y-%m-%d")
@@ -72,7 +72,7 @@ def get_git_metrics(interval="weekly"):
     # Graceful fallback: If weekly/monthly returned 0 commits due to backdated sprint schedule,
     # fallback to all commits on this branch so the Form-3 report is not blank!
     if not raw_output.strip() and interval in ["weekly", "monthly"]:
-        fallback_args = ['git', 'log', '--no-merges', '--pretty=format:COMMIT|||%h|||%an|||%ad|||%s', '--date=short', '--numstat']
+        fallback_args = ['git', 'log', '--all', '--no-merges', '--pretty=format:COMMIT|||%h|||%an|||%ad|||%s', '--date=short', '--numstat']
         try:
             raw_output = subprocess.check_output(fallback_args, encoding='utf-8', errors='replace')
             scope_title = f"Sprint Progression (All Branch Sprints)"
