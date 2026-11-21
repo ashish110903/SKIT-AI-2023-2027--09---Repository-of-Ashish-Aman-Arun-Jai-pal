@@ -19,10 +19,24 @@ COLLEGE_NAME = "Swami Keshvanand Institute of Technology, Management & Gramothan
 DEPARTMENT_NAME = "Department of Computer Science & Engineering (Artificial Intelligence)"
 # -------------------------------------------------------------
 
+# Defined Project Sprint Weeks (Sep 11, 2026 to Nov 20, 2026)
+PROJECT_WEEKS = {
+    1:  ("2026-09-11", "2026-09-17", "Sprint 1: Requirement & Research"),
+    2:  ("2026-09-18", "2026-09-24", "Sprint 1: Architecture & Sensor Specifications"),
+    3:  ("2026-09-25", "2026-10-01", "Sprint 2: Backend Structure, Dashboard UI, Data Analysis"),
+    4:  ("2026-10-02", "2026-10-08", "Sprint 2-3: Telemetry Ingestion, Live Charts, Feature Extraction"),
+    5:  ("2026-10-09", "2026-10-15", "Sprint 3: Database Models, Rainfall Gauge, Data Preprocessing"),
+    6:  ("2026-10-16", "2026-10-22", "Sprint 3: Station Registration, Map Visualization, Baseline ML"),
+    7:  ("2026-10-23", "2026-10-29", "Sprint 3-4: Historical APIs, Backend Integration, Classifiers"),
+    8:  ("2026-10-30", "2026-11-05", "Sprint 4: Alert Dispatcher, Risk Visualizer, Anomaly Detection"),
+    9:  ("2026-11-06", "2026-11-12", "Sprint 4-5: Pipeline Coordinator, Alarm UI, Predictor Integration"),
+    10: ("2026-11-13", "2026-11-20", "Sprint 5: System Verification, Offline Mode, Production Serving"),
+}
+
 def get_repo_info():
     """Extracts the repository name and current branch."""
-    repo_name = "Project-Repository"
-    branch_name = os.environ.get("GITHUB_REF_NAME") or os.environ.get("GITHUB_HEAD_REF") or "jaipal"
+    repo_name = "CloudBurst-Early-Warning"
+    branch_name = os.environ.get("GITHUB_REF_NAME") or os.environ.get("GITHUB_HEAD_REF") or "main"
 
     try:
         root_path = subprocess.check_output(['git', 'rev-parse', '--show-toplevel'], encoding='utf-8').strip()
@@ -46,9 +60,7 @@ def get_repo_info():
 
 def normalize_author(name: str) -> str:
     """
-    Normalize git author names to consistent display names.
-    Handles mismatches like 'ashish110903' vs 'Ashish Sharma',
-    'JAI PAL' vs 'Jai Pal', GitHub usernames, etc.
+    Normalize git author names to consistent student display names.
     """
     name_lower = name.lower().strip()
     if any(x in name_lower for x in ["ashish", "ashish110903", "ashish sharma"]):
@@ -59,45 +71,25 @@ def normalize_author(name: str) -> str:
         return "Arun Sharma"
     if any(x in name_lower for x in ["jai", "jaipal", "jai pal", "jaypal"]):
         return "Jai Pal"
-    return name  # Keep unknown authors as-is
+    return name
 
-
-def remap_future_date(date_str: str, today: datetime.date, future_commits_seen: list) -> str:
+def get_git_metrics(start_date=None, end_date=None, interval_label="weekly", week_num=None):
     """
-    Remap a future-dated commit to a recent date (last 10-15 days).
-    Each unique future commit is spread across the window so they
-    don't all land on the same day.
-    """
-    try:
-        commit_date = datetime.datetime.strptime(date_str, "%Y-%m-%d").date()
-        if commit_date <= today:
-            return date_str  # Not future, keep as-is
-
-        # Assign a slot: spread over last 10 days, one per day per author
-        idx = len(future_commits_seen)
-        days_back = (idx % 10) + 1          # cycles 1..10 days ago
-        remapped = today - datetime.timedelta(days=days_back)
-        future_commits_seen.append(date_str)
-        return remapped.strftime("%Y-%m-%d")
-    except Exception:
-        return date_str
-
-
-def get_git_metrics(interval="weekly"):
-    """
-    Parses Git commit logs and aggregates metrics.
-    Supported intervals: 'weekly', 'monthly', 'final'
+    Parses Git commit logs across all branches and aggregates metrics for a specific window.
     """
     today = datetime.date.today()
     git_args = ['git', 'log', '--all', '--no-merges', '--pretty=format:COMMIT|||%h|||%an|||%ad|||%s', '--date=short', '--numstat']
 
-    if interval == "weekly":
-        # Use a wide window so future-remapped commits appear; filter later
-        scope_title = f"Last 7 Days (Week of {today.strftime('%b %d, %Y')})"
-    elif interval == "monthly":
-        scope_title = f"Last 30 Days (Since {(today - datetime.timedelta(days=30)).strftime('%Y-%m-%d')})"
+    if start_date and end_date:
+        if week_num:
+            scope_title = f"Week {week_num:02d}: {start_date} to {end_date} ({PROJECT_WEEKS[week_num][2]})"
+        else:
+            scope_title = f"{start_date} to {end_date}"
+    elif interval_label == "monthly":
+        since_date = (today - datetime.timedelta(days=30)).strftime("%Y-%m-%d")
+        scope_title = f"Last 30 Days (Since {since_date})"
     else:
-        scope_title = "Complete Project Lifecycle (All Commits)"
+        scope_title = "Complete Project Lifecycle (Sep 11, 2026 to Nov 20, 2026)"
 
     try:
         raw_output = subprocess.check_output(git_args, encoding='utf-8', errors='replace')
@@ -112,12 +104,9 @@ def get_git_metrics(interval="weekly"):
     timeline_activity = defaultdict(lambda: defaultdict(int))
     student_logs = defaultdict(list)
 
-    # Track future-commit remapping per author so slots don't collide
-    future_commits_per_author = defaultdict(list)
-
     current_author = None
     current_date_str = None
-    seen_shas = set()   # deduplicate commits appearing on multiple branches
+    seen_shas = set()
 
     for line in raw_output.strip().split('\n'):
         line = line.strip()
@@ -145,27 +134,19 @@ def get_git_metrics(interval="weekly"):
                 continue
             seen_shas.add(sha)
 
+            # Skip commits with future dates beyond project scope (e.g., placeholder 2027 commits)
+            if date_str > "2026-11-22":
+                current_author = None
+                continue
+
+            # Date range filter
+            if start_date and end_date:
+                if not (start_date <= date_str <= end_date):
+                    current_author = None
+                    continue
+
             # Normalize author name
             author = normalize_author(author)
-
-            # Remap future dates to last 10 days
-            date_str = remap_future_date(date_str, today, future_commits_per_author[author])
-
-            # Apply interval window filter AFTER remapping
-            try:
-                commit_date = datetime.datetime.strptime(date_str, "%Y-%m-%d").date()
-                if interval == "weekly":
-                    since = today - datetime.timedelta(days=7)
-                    if commit_date < since:
-                        current_author = None
-                        continue
-                elif interval == "monthly":
-                    since = today - datetime.timedelta(days=30)
-                    if commit_date < since:
-                        current_author = None
-                        continue
-            except Exception:
-                pass
 
             current_author = author
             current_date_str = date_str
@@ -176,12 +157,12 @@ def get_git_metrics(interval="weekly"):
 
             try:
                 dt = datetime.datetime.strptime(current_date_str, "%Y-%m-%d").date()
-                if interval == "weekly":
+                if start_date and end_date:
                     period_key = dt.strftime("%b %d (%a)")
-                elif interval == "monthly":
+                elif interval_label == "monthly":
                     period_key = f"{dt.isocalendar()[0]}-W{dt.isocalendar()[1]:02d}"
                 else:
-                    period_key = dt.strftime("%Y-%m")
+                    period_key = dt.strftime("%b %d")
                 timeline_activity[period_key][current_author] += 1
             except Exception:
                 pass
@@ -194,35 +175,44 @@ def get_git_metrics(interval="weekly"):
 
     return students, timeline_activity, student_logs, scope_title
 
-def create_charts(students, timeline_activity, interval):
+def create_charts(students, timeline_activity, title_suffix):
     """Generates workload distribution and timeline comparison charts."""
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(11, 3.8))
     authors = list(students.keys())
-    periods = list(timeline_activity.keys())
+
+    # Sort periods chronologically
+    periods = sorted(list(timeline_activity.keys()))
 
     # 1. Timeline Chart
     if periods and authors:
+        colors_map = {
+            'Ashish Sharma': '#1E40AF',
+            'Jai Pal': '#0284C7',
+            'Aman Sharma': '#059669',
+            'Arun Sharma': '#D97706'
+        }
         for author in authors:
             counts = [timeline_activity[p].get(author, 0) for p in periods]
-            ax1.plot(periods, counts, marker='o', linewidth=2, label=author)
-        ax1.set_title(f"Commit Timeline ({interval.capitalize()})", fontsize=10, fontweight='bold')
+            c = colors_map.get(author, None)
+            ax1.plot(periods, counts, marker='o', linewidth=2, label=author, color=c)
+        ax1.set_title(f"Commit Timeline ({title_suffix})", fontsize=10, fontweight='bold')
         ax1.set_ylabel("Commits")
         ax1.tick_params(axis='x', rotation=30)
         ax1.grid(True, linestyle='--', alpha=0.5)
         ax1.legend(fontsize=8)
     else:
-        ax1.text(0.5, 0.5, "No commits found in this interval", ha='center', va='center')
+        ax1.text(0.5, 0.5, "No commits found in this period", ha='center', va='center')
 
     # 2. Net LOC Chart
     if authors:
         net_loc = [students[a]["added"] - students[a]["deleted"] for a in authors]
-        colors_list = ['#4E79A7', '#F28E2B', '#E15759', '#76B7B2', '#59A14F']
+        colors_list = ['#1E40AF', '#0284C7', '#059669', '#D97706']
         ax2.bar(authors, net_loc, color=colors_list[:len(authors)], width=0.45)
         ax2.set_title("Net Lines of Code Written", fontsize=10, fontweight='bold')
         ax2.set_ylabel("LOC (Added - Deleted)")
         ax2.grid(axis='y', linestyle='--', alpha=0.5)
     else:
-        ax2.text(0.5, 0.5, "No LOC changes recorded", ha='center', va='center')
+        ax2.text(0.5, 0.5, "No LOC recorded", ha='center', va='center')
 
     plt.tight_layout()
     img_buffer = io.BytesIO()
@@ -231,24 +221,30 @@ def create_charts(students, timeline_activity, interval):
     img_buffer.seek(0)
     return Image(img_buffer, width=500, height=170)
 
-def generate_pdf(interval="weekly"):
+def generate_pdf(interval="weekly", start_date=None, end_date=None, week_num=None, output_filename=None):
     repo_name, branch_name = get_repo_info()
-    students, timeline_activity, student_logs, scope_title = get_git_metrics(interval)
+    students, timeline_activity, student_logs, scope_title = get_git_metrics(
+        start_date=start_date, end_date=end_date, interval_label=interval, week_num=week_num
+    )
 
     if students is None:
+        print("[ERROR] No students or metrics found.")
         return
 
-    date_stamp = datetime.date.today().strftime("%Y-%m-%d")
-
-    if interval == "weekly":
-        report_title = "Weekly Progress Report (Form-3)"
-        doc_name = f"{repo_name}_Weekly_Progress_Report_Form-3_{date_stamp}.pdf"
-    elif interval == "monthly":
-        report_title = "Monthly Progress Report (Form-3)"
-        doc_name = f"{repo_name}_Monthly_Progress_Report_Form-3_{date_stamp}.pdf"
-    else:
+    if week_num:
+        report_title = f"Weekly Progress Report - Week {week_num:02d} (Form-3)"
+        default_doc = f"{repo_name}_Weekly_Progress_Report_Form-3_Week_{week_num:02d}_{start_date}_to_{end_date}.pdf"
+    elif start_date and end_date:
+        report_title = f"Custom Progress Report (Form-3)"
+        default_doc = f"{repo_name}_Progress_Report_{start_date}_to_{end_date}.pdf"
+    elif interval == "final":
         report_title = "Final Project Evaluation Report"
-        doc_name = f"{repo_name}_Final_Report_{date_stamp}.pdf"
+        default_doc = f"{repo_name}_Final_Report_{datetime.date.today().strftime('%Y-%m-%d')}.pdf"
+    else:
+        report_title = "Weekly Progress Report (Form-3)"
+        default_doc = f"{repo_name}_Weekly_Progress_Report_Form-3_{datetime.date.today().strftime('%Y-%m-%d')}.pdf"
+
+    doc_name = output_filename or default_doc
 
     doc = SimpleDocTemplate(
         doc_name,
@@ -316,7 +312,8 @@ def generate_pdf(interval="weekly"):
     table_data = [["Student Name", "Commits (%)", "Lines Added", "Lines Deleted", "Net LOC", "Active Days"]]
 
     if students:
-        for name, data in students.items():
+        for name in sorted(students.keys()):
+            data = students[name]
             pct = (data["commits"] / total_commits * 100) if total_commits > 0 else 0
             net = data["added"] - data["deleted"]
             table_data.append([
@@ -328,7 +325,7 @@ def generate_pdf(interval="weekly"):
                 f"{len(data['active_days'])} days"
             ])
     else:
-        table_data.append(["No commits found in this period. Run with 'final' to see all commits.", "-", "-", "-", "-", "-"])
+        table_data.append(["No commits found in this period.", "-", "-", "-", "-", "-"])
 
     table = Table(table_data, colWidths=[120, 80, 80, 80, 80, 100])
     table.setStyle(TableStyle([
@@ -347,22 +344,26 @@ def generate_pdf(interval="weekly"):
     story.append(Spacer(1, 6))
 
     # 4. Visual Charts
+    chart_suffix = f"Week {week_num}" if week_num else interval.capitalize()
     story.append(Paragraph("2. Visual Trends & Volume", section_style))
-    chart_image = create_charts(students, timeline_activity, interval)
+    chart_image = create_charts(students, timeline_activity, chart_suffix)
     story.append(chart_image)
     story.append(Spacer(1, 6))
 
     # 5. Detailed Commit Logs per Student
-    story.append(Paragraph(f"3. Detailed Commit Logs ({interval.capitalize()})", section_style))
+    story.append(Paragraph(f"3. Detailed Commit Logs ({chart_suffix})", section_style))
     if not student_logs:
         story.append(Paragraph("<i>No commit logs found for this timeframe.</i>", styles['Normal']))
     else:
-        for student_name, logs in student_logs.items():
+        for student_name in sorted(student_logs.keys()):
+            logs = student_logs[student_name]
             student_section = []
             student_section.append(Paragraph(f"<b>Student:</b> {html.escape(student_name)} — <i>{len(logs)} commit(s)</i>", sub_section_style))
 
             log_table_data = [["Date", "Hash", "Commit Message"]]
-            for date_val, sha_val, msg_val in logs:
+            # Sort logs chronologically by date
+            sorted_logs = sorted(logs, key=lambda x: x[0])
+            for date_val, sha_val, msg_val in sorted_logs:
                 safe_msg = html.escape(msg_val) if msg_val else "(No commit message)"
                 log_table_data.append([
                     Paragraph(date_val, meta_cell_style),
@@ -389,9 +390,40 @@ def generate_pdf(interval="weekly"):
             story.append(KeepTogether(student_section))
 
     doc.build(story)
-    print(f"\n[SUCCESS] Generated: {doc_name}")
-    print(f" -> Found {len(students)} student(s) and {total_commits} total commits.")
+    print(f"[SUCCESS] Generated: {doc_name} -> {len(students)} student(s), {total_commits} commits.")
+
+def generate_all_weeks():
+    """Generates PDF reports for all 10 sprint weeks into weekly_reports/ folder."""
+    os.makedirs("weekly_reports", exist_ok=True)
+    repo_name, _ = get_repo_info()
+    print("\n=======================================================")
+    print("Generating Form-3 Weekly Progress Reports for All Weeks")
+    print("=======================================================\n")
+    for w_num in sorted(PROJECT_WEEKS.keys()):
+        s_date, e_date, _ = PROJECT_WEEKS[w_num]
+        out_file = os.path.join("weekly_reports", f"{repo_name}_Weekly_Report_Week_{w_num:02d}_{s_date}_to_{e_date}.pdf")
+        generate_pdf(interval="weekly", start_date=s_date, end_date=e_date, week_num=w_num, output_filename=out_file)
+    print("\n[COMPLETE] All 10 weekly reports generated in 'weekly_reports/' directory.")
 
 if __name__ == "__main__":
-    chosen_interval = sys.argv[1].lower() if len(sys.argv) > 1 else "weekly"
-    generate_pdf(chosen_interval)
+    arg = sys.argv[1].lower() if len(sys.argv) > 1 else "weekly"
+
+    if arg in ("all", "all_weeks", "--all"):
+        generate_all_weeks()
+    elif arg.startswith("week") or arg.startswith("w"):
+        num_str = arg.replace("week", "").replace("w", "")
+        if num_str.isdigit() and int(num_str) in PROJECT_WEEKS:
+            w = int(num_str)
+            s_date, e_date, _ = PROJECT_WEEKS[w]
+            generate_pdf(interval="weekly", start_date=s_date, end_date=e_date, week_num=w)
+        else:
+            print(f"Unknown week: {arg}. Please use week1 .. week10")
+    elif len(sys.argv) >= 3:
+        # Custom date range: python generate_report.py 2026-09-11 2026-09-17
+        generate_pdf(interval="custom", start_date=sys.argv[1], end_date=sys.argv[2])
+    elif arg == "final":
+        generate_pdf(interval="final", start_date="2026-09-11", end_date="2026-11-20")
+    else:
+        # Default: Week 10 (latest project week)
+        s_date, e_date, _ = PROJECT_WEEKS[10]
+        generate_pdf(interval="weekly", start_date=s_date, end_date=e_date, week_num=10)
