@@ -1,0 +1,2 @@
+.sidebar { width: 240px; background: var(--color-card); height: 100vh; position: fixed; }
+@media(max-width: 768px) { .sidebar { transform: translateX(-100%); transition: 0.3s; } }

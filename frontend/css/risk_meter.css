@@ -1,0 +1,3 @@
+.risk-badge { font-weight: bold; padding: 8px 16px; border-radius: 20px; color: white; display: inline-block; }
+.pulse-danger { animation: pulse 1s infinite alternate; }
+@keyframes pulse { from { box-shadow: 0 0 4px #dc2626; } to { box-shadow: 0 0 20px #dc2626; } }
