@@ -4,60 +4,54 @@ Author: Ashish Sharma (Backend Lead)
 Project ID: SKIT/AI/2023-2027/09
 """
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import datetime
-from backend.schemas import SensorTelemetryCreate, SensorTelemetryResponse
+from backend.database import get_db
+from backend.schemas import SensorTelemetryCreate
+from backend import crud
 
 router = APIRouter(prefix="/sensors", tags=["Sensors Telemetry"])
 
-# In-memory buffer for fast prototyping and edge caching
-telemetry_buffer = {}
-
 @router.post("/telemetry", response_model=dict, status_code=201)
-def ingest_telemetry(payload: SensorTelemetryCreate):
+def ingest_telemetry(payload: SensorTelemetryCreate, db: Session = Depends(get_db)):
     """
     Ingests environmental sensor packet from LoRa / Hardware Gateway.
     Validates metrics and stages for database persistence and hazard check.
     """
-    record = payload.model_dump()
-    record["id"] = len(telemetry_buffer.get(payload.station_id, [])) + 1
-    record["created_at"] = datetime.utcnow()
-    
-    if payload.station_id not in telemetry_buffer:
-        telemetry_buffer[payload.station_id] = []
-    
-    telemetry_buffer[payload.station_id].append(record)
-    
+    record = crud.create_sensor_reading(db, payload)
     return {
         "status": "success",
         "message": f"Telemetry processed for {payload.station_id}",
-        "record_id": record["id"],
-        "timestamp": record["created_at"].isoformat()
+        "record_id": record.id,
+        "timestamp": record.recorded_at.isoformat()
     }
 
 @router.get("/latest", response_model=dict)
-def get_latest_telemetry(station_id: str = Query("STN-01", description="Station Identifier")):
+def get_latest_telemetry(
+    station_id: str = Query("STN-01", description="Station Identifier"),
+    db: Session = Depends(get_db)
+):
     """
-    Returns latest telemetry readings for the frontend dashboard cards.
+    Returns latest telemetry readings from DB for frontend dashboard cards.
     """
-    station_records = telemetry_buffer.get(station_id, [])
-    if station_records:
-        latest = station_records[-1]
+    reading = crud.get_latest_reading(db, station_id)
+    if reading:
         return {
-            "stationId": latest["station_id"],
-            "rainfallRate": latest["rainfall_rate"],
-            "rainAccum1h": latest.get("rain_accum_1h", latest["rainfall_rate"] * 0.7),
-            "pressure": latest["pressure"],
-            "pressureDropRate": latest.get("pressure_drop_rate", -0.2),
-            "temperature": latest["temperature"],
-            "dewPoint": latest.get("dew_point", latest["temperature"] - 2.5),
-            "humidity": latest["humidity"],
-            "battery": f"{latest.get('battery_pct', 92)}%",
-            "signal": f"{latest.get('signal_rssi', -75)} dBm"
+            "stationId": reading.station_id,
+            "rainfallRate": reading.rainfall_rate,
+            "rainAccum1h": reading.rain_accum_1h,
+            "pressure": reading.pressure,
+            "pressureDropRate": reading.pressure_drop_rate,
+            "temperature": reading.temperature,
+            "dewPoint": reading.dew_point,
+            "humidity": reading.humidity,
+            "battery": f"{reading.battery_pct}%",
+            "signal": f"{reading.signal_rssi} dBm"
         }
     
-    # Baseline nominal fallback if no packet received yet
+    # Baseline nominal fallback
     return {
         "stationId": station_id,
         "rainfallRate": 0.0,
@@ -74,10 +68,22 @@ def get_latest_telemetry(station_id: str = Query("STN-01", description="Station 
 @router.get("/history", response_model=List[dict])
 def get_telemetry_history(
     station_id: str = Query("STN-01"),
-    limit: int = Query(12, ge=1, le=100)
+    limit: int = Query(12, ge=1, le=100),
+    db: Session = Depends(get_db)
 ):
     """
-    Returns rolling historical readings for Chart.js telemetry trends.
+    Returns rolling historical readings from DB for Chart.js telemetry trends.
     """
-    records = telemetry_buffer.get(station_id, [])
-    return records[-limit:] if records else []
+    records = crud.get_historical_readings(db, station_id, limit)
+    result = []
+    for r in reversed(records):
+        result.append({
+            "id": r.id,
+            "station_id": r.station_id,
+            "rainfall_rate": r.rainfall_rate,
+            "pressure": r.pressure,
+            "temperature": r.temperature,
+            "humidity": r.humidity,
+            "recorded_at": r.recorded_at.isoformat()
+        })
+    return result
